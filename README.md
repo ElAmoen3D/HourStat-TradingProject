@@ -4,4 +4,4 @@ is swept within the first 20 minutes, and determine if the price returns.
 
 # IMPORTANT - INPUT CSV IS NOT INCLUDED IN THIS REPOSITORY!
 
-Add the input csv as 'nq-1m_bk.csv'
+Add the input csv as 'nq-1m_bk.csv'. Input file must be in one-minute intervals
