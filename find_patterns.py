@@ -24,6 +24,14 @@ OUTPUT_FILE = "NQ_HourStat_Results.csv" # Output results
 print("Loading data...")
 df = pd.read_csv(DATA_FILE, delimiter=";", names=["Date", "Time", "Open", "High", "Low", "Close", "Volume"], header=0)
 
+# dictionary with every hour of the trading day
+trading_hours = [f"{hour:02d}:00" for hour in range(9, 17)]
+hours_dict = {}
+
+for hour in trading_hours:
+    hours_dict[hour] = pd.DataFrame(columns=["Date", "Time", "Worked"])
+
+
 # change time into timedelta
 df["Time"] = pd.to_timedelta(df["Time"].astype(str) + ":00")
 
@@ -43,75 +51,67 @@ df = df.sort_values("Datetime").set_index("Datetime")
 # RESAMPLE TO HOURLY CANDLES
 # ===============================
 
-print("Resampling to hourly candles...")
-hourly = df.resample("1H").agg({
-    "Open": "first",
-    "High": "max",
-    "Low": "min",
-    "Close": "last"
-})
+
 
 # ===============================
 # HELPER FUNCTION: Check pattern
 # ===============================
 
-def check_hour_stat(h1_start, h2_start, df, hourly):
-    h1 = hourly.loc[h1_start]
-    h2 = hourly.loc[h2_start]
+def check_hour_stat(h1_start, h2_start, df):
+    
+    h1 = df.loc[h1_start:h1_start + timedelta(hours=1) - timedelta(minutes=1)]
+    h2 = df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]
 
-    # condition 1: H2 opens inside H1 range
-    if not (h1.Low < h2.Open < h1.High):
+    try:
+        h2_open = h2["Open"].iloc[0]
+    except Exception as e:
         return None
 
-    # define time windows
-    h2_first_20m = df.loc[h2_start:h2_start + timedelta(minutes=19)]
-    h2_full = df.loc[h2_start:h2_start + timedelta(minutes=59)]
+    # handle error cases
+    if h1.empty or h2.empty:
+        return None
+    
+    # find hour 1 high and low
+    h1_high = h1["High"].max()
+    h1_low = h1["Low"].min()
 
-    h2_last_40m = df.loc[h2_start + timedelta(minutes=20):h2_start + timedelta(minutes=59)]
+    # find if hour 2 opens inside hour 1 range
+    if not (h1_low <= h2["Open"].iloc[0] <= h1_high):
+        return None
+    
+    # determine sweep within first twenty minutes of hour 2
+    h2_first_20 = h2.loc[h2.index[0]:h2.index[0] + timedelta(minutes=19)]
+    h2_last_40 = h2.loc[h2.index[0] + timedelta(minutes=20):h2.index[0] + timedelta(minutes=59)]
 
-    direction = None
     sweep_time = None
 
-    # condition 2: Sweep within first 20 minutes
-    if (h2_first_20m["High"] > h1.High).any():
-        direction = "High Sweep"
-        sweep_time = h2_first_20m[h2_first_20m["High"] > h1.High].index[0]
-    elif (h2_first_20m["Low"] < h1.Low).any():
-        direction = "Low Sweep"
-        sweep_time = h2_first_20m[h2_first_20m["Low"] < h1.Low].index[0]
+    for row in h2_first_20.itertuples():
+        if row.High > h1_high:
+            direction = "Down"
+            sweep_time = row.Index
+            break
+        elif row.Low < h1_low:
+            direction = "Up"
+            sweep_time = row.Index
+            break
 
-    if direction is None:
-        return None
+    if sweep_time is None: return None
 
-    # condition 3: Return to open before close
-    # iterate through full hour after sweep
- #   returned = False
-  #  for timestamp, row in h2_full.iterrows():
-   #     if direction == "High Sweep" and row["Low"] <= h2.Open:
-    #        returned = True
-     #       break
-      #  elif direction == "Low Sweep" and row["High"] >= h2.Open:
-       #     returned = True
-  #          break
-  #  return_time = None
-  #  
-  #  if returned:
-  #      cross = h2_full[(h2_full["High"] >= h2.Open) & (h2_full["Low"] <= h2.Open)]
-  #      if not cross.empty:
-  #          return_time = cross.index[0]
-
-
-    returned = False
     return_time = None
-    for row in h2_last_40m.itertuples():
-        if direction == "High Sweep" and row.Low <= h2.Open:
+    returned = False
+
+    # determine return within last forty minutes of hour 2
+    for row in h2_last_40.itertuples():
+        if direction == "Down" and row.Low < h2_open:
             returned = True
             return_time = row.Index
             break
-        elif direction == "Low Sweep" and row.High >= h2.Open:
+        elif direction == "Up" and row.High > h2_open:
             returned = True
             return_time = row.Index
             break
+
+    
 
     return {
         "H1_Start": h1_start,
@@ -132,12 +132,19 @@ def check_hour_stat(h1_start, h2_start, df, hourly):
 print("Scanning hour pairs...")
 results = []
 
-for i in range(len(hourly) - 1):
-    h1_start = hourly.index[i]
-    h2_start = hourly.index[i + 1]
-    res = check_hour_stat(h1_start, h2_start, df, hourly)
-    if res:
-        results.append(res)
+# first entry in dataframe
+current_time = df.index[0]
+end_time = df.index[-1]  
+
+while current_time + timedelta(hours=2) <= end_time:
+    h1_start = current_time
+    h2_start = current_time + timedelta(hours=1)
+
+    result = check_hour_stat(h1_start, h2_start, df)
+    if result:
+        results.append(result)
+
+    current_time += timedelta(minutes=60)
 
 # ===============================
 # CREATE RESULT DATAFRAME
