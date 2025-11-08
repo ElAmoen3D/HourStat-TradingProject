@@ -14,7 +14,7 @@ from datetime import timedelta
 # CONFIGURATION
 # ===============================
 
-DATA_FILE = "partdata.csv"     # Input file path
+DATA_FILE = "nq-1m_bk.csv"     # Input file path
 OUTPUT_FILE = "NQ_HourStat_Results.csv" # Output results
 
 # ===============================
@@ -162,6 +162,17 @@ if not res_df.empty:
     print(f"Win rate: {win_rate:.2f}%")
 else:
     print("No valid Hour Stat setups found in this dataset.")
+
+# Hourly hitrates
+
+for hour in range(24):
+    if 9 <= hour <= 16:
+        hour_df = res_df[res_df["H2_Start"].dt.hour == hour]
+        if not hour_df.empty:
+            hour_win_rate = hour_df["Worked"].mean() * 100
+            print(f"Hour {hour}: Setups: {len(hour_df)}, Win Rate: {hour_win_rate:.2f}%")
+        else:
+            print(f"Hour {hour}: No setups found.")
 
 # ===============================
 # SAVE TO CSV
