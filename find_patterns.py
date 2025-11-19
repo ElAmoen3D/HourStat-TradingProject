@@ -23,7 +23,7 @@ OUTPUT_FILE = "NQ_HourStat_Results.csv" # Output results
 
 print("Loading data...")
 def readData(file_path):
-    df = pd.read_csv(DATA_FILE, delimiter=";", names=["Date", "Time", "Open", "High", "Low", "Close", "Volume"], header=0)
+    df = pd.read_csv(file_path, delimiter=";", names=["Date", "Time", "Open", "High", "Low", "Close", "Volume"], header=0)
 
     df = df.dropna()
     df = df.drop(columns=["Volume"])
@@ -49,7 +49,7 @@ def readData(file_path):
     return df
 
 
-df = readData(DATA_FILE)
+df = pd.read_csv("NQ_temp_processed.csv", parse_dates=["Datetime"], index_col="Datetime")
 
 
 # ===============================
@@ -61,15 +61,17 @@ def check_hour_stat(h1_start, h2_start, df):
     h1 = df.loc[h1_start:h1_start + timedelta(hours=1) - timedelta(minutes=1)]
     h2 = df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]
 
-    try:
-        h2_open = h2["Open"].iloc[0]
-    except Exception as e:
-        return None
-
-    # handle error cases
     if h1.empty or h2.empty:
+        print("One of the hours is empty, skipping...")
         return None
     
+    try:
+        h2_open = h2.loc[h2_start]["Open"]
+    except Exception as e:
+        print(f"Error retrieving H2 open price: {e}")
+        return None
+
+
     # find hour 1 high and low
     h1_high = h1["High"].max()
     h1_low = h1["Low"].min()
@@ -134,8 +136,8 @@ def check_hour_stat(h1_start, h2_start, df):
 print("Scanning hour pairs...")
 res_df = pd.DataFrame()
 
-# first entry in dataframe
-current_time = df.index[0]
+# last 6 months entry in dataframe
+current_time = df.index[-(360 * 60 * 24)]
 end_time = df.index[-1]  
 
 while current_time + timedelta(hours=2) <= end_time:
@@ -173,6 +175,19 @@ for hour in range(24):
             print(f"Hour {hour}: Setups: {len(hour_df)}, Win Rate: {hour_win_rate:.2f}%")
         else:
             print(f"Hour {hour}: No setups found.")
+
+print("\nMonthly hitrates")
+
+for month in range(12):
+
+    month_df = res_df[res_df["H2_Start"].dt.month == month + 1]
+    if not month_df.empty:
+        month_win_rate = month_df["Worked"].mean() * 100
+        print(f"Month {month + 1}: Setups: {len(month_df)}, Win Rate: {month_win_rate:.2f}%")
+    else:
+        print(f"Month {month + 1}: No setups found.")
+
+    
 
 # ===============================
 # SAVE TO CSV
