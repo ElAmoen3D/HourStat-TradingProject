@@ -143,6 +143,7 @@ current_time = df.index[0]  # approx last 6 months
 end_time = df.index[-1]  
 
 while current_time + timedelta(hours=2) <= end_time:
+
     # take only day and hour of current_time
     window_start = current_time.replace(minute=0, second=0, microsecond=0)
     window_end = window_start + timedelta(hours=2)
@@ -155,7 +156,7 @@ while current_time + timedelta(hours=2) <= end_time:
     
     #filter df to only include rows within this window
     window_df = df.loc[window_start:window_end - timedelta(minutes=1)]
-    h1_start = window_start
+    h1_start = window_df.index[0]
     h2_start = None
     
     for row in window_df.itertuples():
@@ -163,8 +164,14 @@ while current_time + timedelta(hours=2) <= end_time:
             h2_start = row.Index
             break
 
+    # make sure both hours have at least 45 minutes of data
+    if h2_start is None or len(window_df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]) < 45:
+        current_time += timedelta(hours=1)
+        continue
+
 
     if (current_time <= current_time.replace(hour=16, minute=0)) or (current_time >= current_time.replace(hour=9, minute=30)):
+
         result = check_hour_stat(h1_start, h2_start, window_df)
     else:
        #skip to next hour
