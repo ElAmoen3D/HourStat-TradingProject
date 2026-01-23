@@ -22,7 +22,14 @@ OUTPUT_FILE = "NQ_HourStat_Results.csv" # Output results
 # ===============================
 
 print("Loading data...")
-def readData(file_path):
+def readData(file_path : str):
+    """
+    Docstring for readData:
+    Takes a path from a .csv file containing stock data and transforms it into a pandas dataframe usable to track hour stats
+    
+    :param file_path: Path of data csv file
+    :type file_path: str
+    """
     df = pd.read_csv(file_path, delimiter=";", names=["Date", "Time", "Open", "High", "Low", "Close", "Volume"], header=0)
 
     df = df.dropna()
@@ -41,6 +48,8 @@ def readData(file_path):
     df["Datetime"] = df["Date"] + df["Time"]
     print("Datetime column created...")
 
+    df = df.drop(columns=["Date", "Time"])
+
     # Set Datetime as index
     df = df.set_index("Datetime")
 
@@ -57,7 +66,24 @@ print(df.head())
 # HELPER FUNCTION: Check pattern
 # ===============================
 
-def check_hour_stat(h1_start, h2_start, df):
+def check_hour_stat(h1_start : datetime, 
+                    h2_start: datetime, 
+                    df: pd.DataFrame):
+    
+    """
+    Docstring for check_hour_stat:
+    
+    Determines whether hour stat is true for two hour blocks, e.g, 8-9 and 9-10
+    
+    :param h1_start: Time at which the first hour begins
+    :type h1_start: datetime
+
+    :param h2_start: Time at which the second hour begins
+    :type h2_start: datetime
+    
+    :param df: Dataframe to index with hour times
+    :type df: pd.DataFrame
+    """
     
     h1 = df.loc[h1_start:h1_start + timedelta(hours=1) - timedelta(minutes=1)]
     h2 = df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]
@@ -67,12 +93,7 @@ def check_hour_stat(h1_start, h2_start, df):
         print(f"h1_start: {h1_start}, h2_start: {h2_start}")
         return None
     
-    h2_open = h2.loc[h2_start]["Open"]
-
-    # if it's a series, get the value
-    if isinstance(h2_open, pd.Series):
-        h2_open = h2_open.iloc[0]
-
+    h2_open = h2.iloc[0]["Open"]
 
     # find hour 1 high and low
     h1_high = h1["High"].max()
@@ -136,11 +157,13 @@ def check_hour_stat(h1_start, h2_start, df):
 # ===============================
 
 print("Scanning hour pairs...")
-res_df = pd.DataFrame()
+all_df = pd.DataFrame()
+pos_df = pd.DataFrame()
+neg_df = pd.DataFrame()
 
 # last 6 months entry in dataframe
 current_time = df.index[0]  # approx last 6 months
-end_time = df.index[-1]  
+end_time = df.index[1000000]  
 
 while current_time + timedelta(hours=2) <= end_time:
 
@@ -165,23 +188,23 @@ while current_time + timedelta(hours=2) <= end_time:
             break
 
     # make sure both hours have at least 45 minutes of data
+ 
     if h2_start is None or len(window_df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]) < 45:
         current_time += timedelta(hours=1)
         continue
 
 
-    if (current_time <= current_time.replace(hour=16, minute=0)) or (current_time >= current_time.replace(hour=9, minute=30)):
-
-        result = check_hour_stat(h1_start, h2_start, window_df)
-    else:
-       #skip to next hour
-        current_time += timedelta(hours=1)
-        continue
+    result = check_hour_stat(h1_start, h2_start, window_df)
 
     if result:
         # convert result to DataFrame row
-        result = pd.DataFrame([result])
-        res_df = pd.concat([res_df, result], ignore_index=True)
+        if result.get("Direction") == "Down":
+            result = pd.DataFrame([result])
+            neg_df = pd.concat([neg_df, result], ignore_index=True)
+        else:
+            result = pd.DataFrame([result])
+            pos_df = pd.concat([pos_df, result], ignore_index=True)
+        
     else:
         print(f"No valid Hour Stat found for hours starting at {h1_start} and {h2_start}.")
 
@@ -191,12 +214,18 @@ while current_time + timedelta(hours=2) <= end_time:
 # CREATE RESULT DATAFRAME
 # ===============================
 
-if not res_df.empty:
-    win_rate = res_df["Worked"].mean() * 100
-    print("\n=========== HOUR STAT RESULTS ===========")
-    print(res_df)
-    print(f"\nTotal setups found: {len(res_df)}")
-    print(f"Win rate: {win_rate:.2f}%")
+if not pos_df.empty:
+    pos_win_rate = pos_df["Worked"].mean() * 100
+    print("\n=========== UP HOUR STAT RESULTS ===========")
+    print(pos_df)
+    print(f"\nTotal setups found: {len(pos_df)}")
+    print(f"Win rate: {pos_win_rate:.2f}%")
+
+    neg_win_rate = neg_df["Worked"].mean() * 100
+    print("\n=========== DOWN HOUR STAT RESULTS ===========")
+    print(neg_df)
+    print(f"\nTotal setups found: {len(neg_df)}")
+    print(f"Win rate: {neg_win_rate:.2f}%")
 else:
     print("No valid Hour Stat setups found in this dataset.")
 
@@ -204,10 +233,17 @@ else:
 
 for hour in range(24):
     if 8 <= hour <= 15:
-        hour_df = res_df[res_df["H2_Start"].dt.hour == hour]
-        if not hour_df.empty:
-            hour_win_rate = hour_df["Worked"].mean() * 100
-            print(f"Hour {hour}: Setups: {len(hour_df)}, Win Rate: {hour_win_rate:.2f}%")
+        pos_hour_df = pos_df[pos_df["H2_Start"].dt.hour == hour]
+        neg_hour_df = neg_df[neg_df["H2_Start"].dt.hour == hour]
+        if not pos_hour_df.empty:
+            hour_pos_win_rate = pos_hour_df["Worked"].mean() * 100
+            print(f"Hour {hour}: Up Setups: {len(pos_hour_df)}, Win Rate: {hour_pos_win_rate:.2f}%")
+        else:
+            print(f"Hour {hour}: No setups found.")
+
+        if not neg_hour_df.empty:
+            hour_neg_win_rate = neg_hour_df["Worked"].mean() * 100
+            print(f"Hour {hour}: Down Setups: {len(neg_hour_df)}, Win Rate: {hour_neg_win_rate:.2f}%")
         else:
             print(f"Hour {hour}: No setups found.")
 
@@ -215,7 +251,7 @@ print("\nMonthly hitrates")
 
 for month in range(12):
 
-    month_df = res_df[res_df["H2_Start"].dt.month == month + 1]
+    month_df = pos_df[pos_df["H2_Start"].dt.month == month + 1]
     if not month_df.empty:
         month_win_rate = month_df["Worked"].mean() * 100
         print(f"Month {month + 1}: Setups: {len(month_df)}, Win Rate: {month_win_rate:.2f}%")
@@ -228,5 +264,5 @@ for month in range(12):
 # SAVE TO CSV
 # ===============================
 
-res_df.to_csv(OUTPUT_FILE, index=False)
+pos_df.to_csv(OUTPUT_FILE, index=False)
 print(f"\nResults saved to: {OUTPUT_FILE}")
