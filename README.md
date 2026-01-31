@@ -3,6 +3,7 @@ The script should iterate through a CSV of NQ prices of any date, find places in
 is swept within the first 20 minutes, and determine if the price returns.
 
 # Sample of successful hour stat
+![samplepic](../screenshots/success1_tradesc.png)
 
 # IMPORTANT - INPUT CSV IS NOT INCLUDED IN THIS REPOSITORY!
 
