@@ -162,8 +162,8 @@ pos_df = pd.DataFrame()
 neg_df = pd.DataFrame()
 
 # last 6 months entry in dataframe
-current_time = df.index[0]  # approx last 6 months
-end_time = df.index[1000000]  
+current_time = df.index[1543750]  # approx last 6 months
+end_time = df.index[-1] 
 
 while current_time + timedelta(hours=2) <= end_time:
 
@@ -264,5 +264,5 @@ for month in range(12):
 # SAVE TO CSV
 # ===============================
 
-pos_df.to_csv(OUTPUT_FILE, index=False)
+neg_df.to_csv(OUTPUT_FILE, index=False)
 print(f"\nResults saved to: {OUTPUT_FILE}")
