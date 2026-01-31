@@ -57,7 +57,6 @@ Win rate: 60.56%
 
 Add the input csv as 'nq-1m_bk.csv'. Input file must be in one-minute intervals
 
-# Latest hitrates as of current build:
-
-
-Month 12: Setups: 3747, Win Rate: 61.04%
+# Running:
+- Ensure nq-1m_bk.csv is in the same directory as hour_stat.py
+- Results csv will be in results directory
