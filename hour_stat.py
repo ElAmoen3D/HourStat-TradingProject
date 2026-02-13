@@ -14,8 +14,8 @@ from datetime import timedelta, datetime
 # CONFIGURATION
 # ===============================
 
-DATA_FILE = "nq-1m_bk.csv"     # Input file path
-OUTPUT_FILE = "NQ_HourStat_Results.csv" # Output results
+DATA_FILE = "nq-5m_bk.csv"     # Input file path
+OUTPUT_FILE = "./results/NQ_HourStat_Results.csv" # Output results
 
 # ===============================
 # LOAD AND PREP DATA
@@ -57,7 +57,7 @@ def readData(file_path : str):
 
     return df
 
-
+readData("nq-5m_bk.csv")
 df = pd.read_csv("NQ_temp_processed.csv", parse_dates=["Datetime"], index_col="Datetime")
 print(df.head())
 
@@ -105,19 +105,21 @@ def check_hour_stat(h1_start : datetime,
     
     # determine sweep within first twenty minutes of hour 2
     h2_first_20 = h2.loc[h2.index[0]:h2.index[0] + timedelta(minutes=19)]
-    h2_last_40 = h2.loc[h2.index[0] + timedelta(minutes=20):h2.index[0] + timedelta(minutes=59)]
+    h2_last_40 = h2.loc[h2.index[0] + timedelta(minutes=20):h2.index[-1]]
 
     sweep_time = None
-
-    for row in h2_first_20.itertuples():
-        if row.High > h1_high:
-            direction = "Down"
-            sweep_time = row.Index
-            break
-        elif row.Low < h1_low:
-            direction = "Up"
-            sweep_time = row.Index
-            break
+    direction = None
+    
+    # Check for sweep more efficiently
+    up_sweep = (h2_first_20["High"] > h1_high)
+    down_sweep = (h2_first_20["Low"] < h1_low)
+    
+    if down_sweep.any():
+        direction = "Down"
+        sweep_time = h2_first_20[down_sweep].index[0]
+    elif up_sweep.any():
+        direction = "Up"
+        sweep_time = h2_first_20[up_sweep].index[0]
 
     if sweep_time is None: return None
 
@@ -125,15 +127,16 @@ def check_hour_stat(h1_start : datetime,
     returned = False
 
     # determine return within last forty minutes of hour 2
-    for row in h2_last_40.itertuples():
-        if direction == "Down" and row.Low < h2_open:
+    if direction == "Down":
+        return_mask = h2_last_40["Low"] < h2_open
+        if return_mask.any():
             returned = True
-            return_time = row.Index
-            break
-        elif direction == "Up" and row.High > h2_open:
+            return_time = h2_last_40[return_mask].index[0]
+    elif direction == "Up":
+        return_mask = h2_last_40["High"] > h2_open
+        if return_mask.any():
             returned = True
-            return_time = row.Index
-            break
+            return_time = h2_last_40[return_mask].index[0]
 
     
     # make sure all numbers in dictionary are standard python types
@@ -162,34 +165,35 @@ pos_df = pd.DataFrame()
 neg_df = pd.DataFrame()
 
 # last 6 months entry in dataframe
-current_time = df.index[1543750]  # approx last 6 months
+current_time = df.index[0]  # approx last 6 months
 end_time = df.index[-1] 
+
+# dataframe with all results
+all_df = pd.DataFrame()
 
 while current_time + timedelta(hours=2) <= end_time:
 
-    # take only day and hour of current_time
-    window_start = current_time.replace(minute=0, second=0, microsecond=0)
-    window_end = window_start + timedelta(hours=2)
-
-
-    #make sure both hours exist in dataframe
-    if window_end - timedelta(minutes=1) not in df.index:
-        current_time += timedelta(hours=1)
-        continue
+    window_start = current_time 
     
-    #filter df to only include rows within this window
-    window_df = df.loc[window_start:window_end - timedelta(minutes=1)]
+    # Filter to 2-hour window instead of searching for exact end time
+    window_df = df.loc[window_start:window_start + timedelta(hours=2)]
+
+    # continue if window is empty
+    if window_df.empty:
+        current_time += timedelta(minutes=60)
+        continue
+
     h1_start = window_df.index[0]
     h2_start = None
     
-    for row in window_df.itertuples():
-        if row.Index >= h1_start + timedelta(hours=1):
-            h2_start = row.Index
-            break
+    # Find first index that's >= 1 hour from h1_start
+    mask = window_df.index >= h1_start + timedelta(hours=1)
+    if mask.any():
+        h2_start = window_df.index[mask][0]
 
-    # make sure both hours have at least 45 minutes of data
+
  
-    if h2_start is None or len(window_df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]) < 45:
+    if h2_start is None:
         current_time += timedelta(hours=1)
         continue
 
@@ -199,9 +203,11 @@ while current_time + timedelta(hours=2) <= end_time:
     if result:
         # convert result to DataFrame row
         if result.get("Direction") == "Down":
+            all_df = pd.concat([all_df, pd.DataFrame([result])], ignore_index=True)
             result = pd.DataFrame([result])
             neg_df = pd.concat([neg_df, result], ignore_index=True)
         else:
+            all_df = pd.concat([all_df, pd.DataFrame([result])], ignore_index=True)
             result = pd.DataFrame([result])
             pos_df = pd.concat([pos_df, result], ignore_index=True)
         
@@ -264,5 +270,11 @@ for month in range(12):
 # SAVE TO CSV
 # ===============================
 
-neg_df.to_csv(OUTPUT_FILE, index=False)
+# convert datetime columns to string for CSV
+all_df["H1_Start"] = all_df["H1_Start"].astype(str)
+all_df["H2_Start"] = all_df["H2_Start"].astype(str)
+all_df["Sweep_Time"] = all_df["Sweep_Time"].astype(str)
+all_df["Return_Time"] = all_df["Return_Time"].astype(str)
+all_df.to_csv(OUTPUT_FILE, index=False)
+
 print(f"\nResults saved to: {OUTPUT_FILE}")
