@@ -3,7 +3,7 @@ The script should iterate through a CSV of NQ prices of any date, find places in
 is swept within the first 20 minutes, and determine if the price returns.
 
 ## Sample of successful hour stat
-![samplepic](./screenshots/success1_tradesc.png)
+![samplepic](./screenshots/example1.png)
 
 This is an example of a succesful instance of the Hour Stat. After the previous hour's high is swept around the 30-minute mark, with the
 price dropping and quickly returning to the hour's open.
@@ -12,7 +12,7 @@ price dropping and quickly returning to the hour's open.
 Determine a hitrate for the NQ prices from 2014 to 2024. First, determine if a two-hour window contains a sweep, then determine
 if the price returns. Only sweeps are considered valid setups.
 
-# Results - Overall Accuracy - 60%
+# Results - Overall Accuracy - 89%
 Roughly, the hour stat held true for 60% of valid setups. Data sample:
 
 ![samplepic](./results/results_table.png)
