@@ -15,7 +15,7 @@ if the price returns. Only sweeps are considered valid setups.
 # Results - Overall Accuracy - 60%
 Roughly, the hour stat held true for 60% of valid setups. Data sample:
 
-![samplepic](./results/resultstable.png)
+![samplepic](./results/results_table.png)
 
 
 ## Hourly Hit-rates:
