@@ -14,7 +14,7 @@ from datetime import timedelta, datetime
 # CONFIGURATION
 # ===============================
 
-DATA_FILE = "nq-5m_bk.csv"     # Input file path
+DATA_FILE = "nq-1m_bk.csv"     # Input file path
 OUTPUT_FILE = "./results/NQ_HourStat_Results.csv" # Output results
 
 # ===============================
@@ -57,7 +57,7 @@ def readData(file_path : str):
 
     return df
 
-readData("nq-5m_bk.csv")
+readData("nq-1m_bk.csv")
 df = pd.read_csv("NQ_temp_processed.csv", parse_dates=["Datetime"], index_col="Datetime")
 print(df.head())
 
@@ -84,6 +84,8 @@ def check_hour_stat(h1_start : datetime,
     :param df: Dataframe to index with hour times
     :type df: pd.DataFrame
     """
+
+
     
     h1 = df.loc[h1_start:h1_start + timedelta(hours=1) - timedelta(minutes=1)]
     h2 = df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]
@@ -92,6 +94,7 @@ def check_hour_stat(h1_start : datetime,
         print("One of the hours is empty, skipping...")
         print(f"h1_start: {h1_start}, h2_start: {h2_start}")
         return None
+
     
     h2_open = h2.iloc[0]["Open"]
 
@@ -111,34 +114,29 @@ def check_hour_stat(h1_start : datetime,
     direction = None
     
     # Check for sweep more efficiently
-    up_sweep = (h2_first_20["High"] > h1_high)
-    down_sweep = (h2_first_20["Low"] < h1_low)
+    up_sweep = (h2_first_20["High"].max() > h1_high)
+    down_sweep = (h2_first_20["Low"].min() < h1_low)
     
-    if down_sweep.any():
+    if down_sweep:
         direction = "Down"
-        sweep_time = h2_first_20[down_sweep].index[0]
-    elif up_sweep.any():
+        sweep_time = h2_first_20[h2_first_20["Low"] < h1_low].index[0]
+    elif up_sweep:
         direction = "Up"
-        sweep_time = h2_first_20[up_sweep].index[0]
+        sweep_time = h2_first_20[h2_first_20["High"] > h1_high].index[0]
 
     if sweep_time is None: return None
 
     return_time = "N/A"
     returned = False
 
-    # determine return within last forty minutes of hour 2
-    if direction == "Down":
-        return_mask = h2_last_40["Low"] < h2_open
-        if return_mask.any():
+    for time, row in h2_last_40.iterrows():
+        # if opening price is within 100 points of hour 2 open, consider it a return
+        if (h2_open - 10 <= row["Open"] <= h2_open + 10):
             returned = True
-            return_time = h2_last_40[return_mask].index[0]
-    elif direction == "Up":
-        return_mask = h2_last_40["High"] > h2_open
-        if return_mask.any():
-            returned = True
-            return_time = h2_last_40[return_mask].index[0]
+            return_time = time
+            break
 
-    
+
     # make sure all numbers in dictionary are standard python types
     
     result_dict = {"H1_Start": h1_start,
