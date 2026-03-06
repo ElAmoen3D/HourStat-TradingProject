@@ -129,13 +129,18 @@ def check_hour_stat(h1_start : datetime,
     return_time = "N/A"
     returned = False
 
-    for time, row in h2_last_40.iterrows():
-        # if opening price is within 100 points of hour 2 open, consider it a return
-        if (h2_open - 10 <= row["Open"] <= h2_open + 10):
-            returned = True
-            return_time = time
-            break
-
+    if (direction == "Down"):
+        for time, row in h2_last_40.iterrows():
+            if row["Low"] < h2_open:
+                return_time = time
+                returned = True
+                break
+    else:
+        for time, row in h2_last_40.iterrows():
+            if row["High"] > h2_open:
+                return_time = time
+                returned = True
+                break
 
     # make sure all numbers in dictionary are standard python types
     
@@ -235,18 +240,21 @@ else:
 
 # Hourly hitrates
 
+upset_df = pd.DataFrame(columns=["Hour", "Setups", "Hit Rate"])
+downset_df = pd.DataFrame(columns=["Hour", "Setups", "Hit Rate"])
 for hour in range(24):
     if 8 <= hour <= 15:
         pos_hour_df = pos_df[pos_df["H2_Start"].dt.hour == hour]
         neg_hour_df = neg_df[neg_df["H2_Start"].dt.hour == hour]
         if not pos_hour_df.empty:
             hour_pos_win_rate = pos_hour_df["Worked"].mean() * 100
-            print(f"Hour {hour}: Up Setups: {len(pos_hour_df)}, Win Rate: {hour_pos_win_rate:.2f}%")
+            upset_df = pd.concat([upset_df, pd.DataFrame([{"Hour": hour, "Setups": len(pos_hour_df), "Hit Rate": hour_pos_win_rate}])], ignore_index=True)
         else:
             print(f"Hour {hour}: No setups found.")
 
         if not neg_hour_df.empty:
             hour_neg_win_rate = neg_hour_df["Worked"].mean() * 100
+            downset_df = pd.concat([downset_df, pd.DataFrame([{"Hour": hour, "Setups": len(neg_hour_df), "Hit Rate": hour_neg_win_rate}])], ignore_index=True)
             print(f"Hour {hour}: Down Setups: {len(neg_hour_df)}, Win Rate: {hour_neg_win_rate:.2f}%")
         else:
             print(f"Hour {hour}: No setups found.")
@@ -274,5 +282,8 @@ all_df["H2_Start"] = all_df["H2_Start"].astype(str)
 all_df["Sweep_Time"] = all_df["Sweep_Time"].astype(str)
 all_df["Return_Time"] = all_df["Return_Time"].astype(str)
 all_df.to_csv(OUTPUT_FILE, index=False)
+
+downset_df.to_csv("./results/NQ_HourStat_Downset_HitRates.csv", index=False)
+upset_df.to_csv("./results/NQ_HourStat_Upset_HitRates.csv", index=False)
 
 print(f"\nResults saved to: {OUTPUT_FILE}")
