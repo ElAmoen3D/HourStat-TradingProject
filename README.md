@@ -12,15 +12,15 @@ price dropping and quickly returning to the hour's open.
 Determine a hitrate for the NQ prices from 2014 to 2024. First, determine if a two-hour window contains a sweep, then determine
 if the price returns. Only sweeps are considered valid setups.
 
-# Results - Overall Accuracy - 89.82%
-Roughly, the hour stat held true for 60% of valid setups. Data sample:
+# Results - Overall Accuracy - 88.76%
+Roughly, the hour stat held true for 89% of valid setups. Data sample:
 
 ![samplepic](./results/results_table.png)
 
 
 ## Hourly Hit-rates:
 
-![samplepic](./results/hourly_table.png)
+![samplepic](./results/resultsummary.png)
 
 # IMPORTANT - INPUT CSV IS NOT INCLUDED IN THIS REPOSITORY!
 
