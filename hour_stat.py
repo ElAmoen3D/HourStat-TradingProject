@@ -14,7 +14,7 @@ from datetime import timedelta, datetime
 # CONFIGURATION
 # ===============================
 
-DATA_FILE = "nq-1m_bk.csv"     # Input file path
+DATA_FILE = "nq-5m_bk.csv"     # Input file path
 OUTPUT_FILE = "./results/NQ_HourStat_Results.csv" # Output results
 
 # ===============================
@@ -108,7 +108,6 @@ def check_hour_stat(h1_start : datetime,
     
     # determine sweep within first twenty minutes of hour 2
     h2_first_20 = h2.loc[h2.index[0]:h2.index[0] + timedelta(minutes=19)]
-    h2_last_40 = h2.loc[h2.index[0] + timedelta(minutes=20):h2.index[-1]]
 
     sweep_time = None
     direction = None
@@ -126,18 +125,21 @@ def check_hour_stat(h1_start : datetime,
 
     if sweep_time is None: return None
 
+    # start searching for return from sweep time onward (same candle is OK)
+    h2_from_sweep = h2.loc[sweep_time:]
+
     return_time = "N/A"
     returned = False
 
     if (direction == "Down"):
-        for time, row in h2_last_40.iterrows():
-            if row["Low"] < h2_open:
+        for time, row in h2_from_sweep.iterrows():
+            if row["High"] > h2_open:
                 return_time = time
                 returned = True
                 break
     else:
-        for time, row in h2_last_40.iterrows():
-            if row["High"] > h2_open:
+        for time, row in h2_from_sweep.iterrows():
+            if row["Low"] < h2_open:
                 return_time = time
                 returned = True
                 break
@@ -151,7 +153,7 @@ def check_hour_stat(h1_start : datetime,
         "H1_Low": h1_low,
         "H2_Open": h2_open,
         "Sweep_Time": sweep_time,
-        "Return_Time": return_time,
+        "Return_time": return_time,
         "Worked": bool(returned)
     }
 
@@ -279,7 +281,7 @@ for month in range(12):
 all_df["H1_Start"] = all_df["H1_Start"].astype(str)
 all_df["H2_Start"] = all_df["H2_Start"].astype(str)
 all_df["Sweep_Time"] = all_df["Sweep_Time"].astype(str)
-all_df["Return_Time"] = all_df["Return_Time"].astype(str)
+all_df["Return_time"] = all_df["Return_time"].astype(str)
 all_df.to_csv(OUTPUT_FILE, index=False)
 
 downset_df.to_csv("./results/NQ_HourStat_Downset_HitRates.csv", index=False)
