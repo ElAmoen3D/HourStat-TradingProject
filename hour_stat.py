@@ -169,12 +169,9 @@ all_df = pd.DataFrame()
 pos_df = pd.DataFrame()
 neg_df = pd.DataFrame()
 
-# Align to the first :00 minute mark
-current_time = df.index[0].replace(minute=0, second=0, microsecond=0)
-if current_time < df.index[0]:
-    current_time += timedelta(hours=1)
-
-end_time = df.index[-1]
+# last 6 months entry in dataframe
+current_time = df.index[0]  # approx last 6 months
+end_time = df.index[-1] 
 
 # dataframe with all results
 all_df = pd.DataFrame()
@@ -188,19 +185,23 @@ while current_time + timedelta(hours=2) <= end_time:
 
     # continue if window is empty
     if window_df.empty:
+        current_time += timedelta(minutes=60)
+        continue
+
+    h1_start = window_df.index[0]
+    h2_start = None
+    
+    # Find first index that's >= 1 hour from h1_start
+    mask = window_df.index >= h1_start + timedelta(hours=1)
+    if mask.any():
+        h2_start = window_df.index[mask][0]
+
+
+ 
+    if h2_start is None:
         current_time += timedelta(hours=1)
         continue
 
-    h1_start = current_time
-    h2_start = current_time + timedelta(hours=1)
-    
-    # Verify both hours have data
-    h1_data = df.loc[h1_start:h1_start + timedelta(hours=1) - timedelta(minutes=1)]
-    h2_data = df.loc[h2_start:h2_start + timedelta(hours=1) - timedelta(minutes=1)]
-    
-    if h1_data.empty or h2_data.empty:
-        current_time += timedelta(hours=1)
-        continue
 
     result = check_hour_stat(h1_start, h2_start, window_df)
 
@@ -218,7 +219,7 @@ while current_time + timedelta(hours=2) <= end_time:
     else:
         print(f"No valid Hour Stat found for hours starting at {h1_start} and {h2_start}.")
 
-    current_time += timedelta(hours=1)
+    current_time += timedelta(minutes=60)
 
 # ===============================
 # CREATE RESULT DATAFRAME
