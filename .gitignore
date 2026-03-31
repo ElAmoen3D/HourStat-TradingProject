@@ -1,2 +1,3 @@
-*.csv
+*.csv 
+!last100.csv
 *.zip
