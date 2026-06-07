@@ -1,0 +1,42 @@
+This study investigates the statistical validity of the &quot;Hour Stat,&quot; a short-term price action
+pattern observed in intraday futures markets, as applied to the E-mini Nasdaq-100 (NQ)
+futures contract using one-minute OHLCV candlestick data spanning approximately two
+years of continuous trading history (September 2023 through September 2025). The Hour
+Stat proposes that when the opening price of a given clock hour (H2) falls within the high-
+low range established by the immediately preceding hour (H1), and price subsequently
+sweeps beyond H1&#39;s range within the first twenty minutes of H2, a mean-reversion back
+through H2&#39;s opening price constitutes a high-probability, tradeable outcome.
+To systematically evaluate this hypothesis, a Python-based backtesting framework was
+developed utilizing the pandas library for time-series data manipulation. The algorithm
+iterates over every consecutive hour pair in the dataset, applies the three-stage pattern filter
+(range containment, directional sweep, return confirmation), and records the outcome of
+each qualifying setup. Results are disaggregated by sweep direction (bullish vs. bearish),
+hour of day, and calendar month to identify temporal clustering or structural biases in
+pattern performance.
+
+
+Across the full dataset, the algorithm identified 6,954 qualifying setups, of which 5,257
+resolved successfully, yielding an aggregate win rate of 75.6%. Bullish (Up) and bearish
+(Down) setups performed comparably at 76.3% and 74.8% respectively, suggesting the
+pattern&#39;s mean-reversion logic is directionally agnostic. Win rates were stable across all
+three calendar years sampled — 74.9% (2023), 74.2% (2024), and 77.9% (2025) —
+indicating the pattern is not an artifact of a single market regime. Intraday performance,
+however, showed notable dispersion: the 9:00 hour produced the highest resolution rate at
+92.7% across 314 setups, coinciding with the U.S. equity open session. Monthly variation
+was modest, with win rates ranging from 72.3% (November) to 79.1% (May), offering no
+strong evidence of seasonal structural breaks. These findings are broadly consistent with the
+preliminary observations from the most recent 100 setups, which yielded a comparable win
+rate exceeding 75% and showed no directional asymmetry.
+
+
+Taken together, these results offer robust preliminary support for the Hour Stat as a
+statistically non-random phenomenon in NQ futures, with a win rate that holds consistently
+above 74% across multiple years, directions, and market sessions. The most actionable
+finding is the pronounced hour-of-day effect, particularly the outperformance during the
+New York open, which warrants further investigation as a session-filtered trading strategy.
+Critical limitations remain: the analysis does not yet account for risk-adjusted returns, bid-
+ask spread, slippage, or stop-loss placement, all of which are necessary to evaluate the
+pattern&#39;s practical profitability. Future work will incorporate these execution-realistic
+parameters, apply formal binomial significance testing against a chance baseline, and
+extend the dataset further back toward 2009 to stress-test the pattern&#39;s consistency across a
+wider range of volatility regimes.
